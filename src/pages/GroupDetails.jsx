@@ -1,3 +1,4 @@
+import { calculateBalances } from "../utils/balanceCalculator";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -18,6 +19,11 @@ function GroupDetails() {
   const [expenses, setExpenses] = useState([]);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+
+  const members = [user.uid]; // later → real group members
+
+const balances = calculateBalances(expenses, members);
+
 
   // Fetch expenses for this group
   useEffect(() => {
@@ -92,6 +98,19 @@ function GroupDetails() {
           ))}
         </ul>
       )}
+      <h3>Balances</h3>
+
+<ul>
+  {Object.entries(balances).map(([memberId, balance]) => (
+    <li key={memberId}>
+      {memberId === user.uid ? "You" : memberId} :
+      {balance > 0 && ` gets ₹${balance}`}
+      {balance < 0 && ` owes ₹${Math.abs(balance)}`}
+      {balance === 0 && " settled"}
+    </li>
+  ))}
+</ul>
+
     </div>
   );
 }
