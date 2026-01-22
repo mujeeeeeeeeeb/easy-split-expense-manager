@@ -1,34 +1,53 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { db } from "../services/firebase";
+import { useAuth } from "../context/AuthContext";
 
 function Groups() {
-  const [groups, setGroups] = useState([
-    { id: 1, name: "Goa Trip", members: 4 },
-    { id: 2, name: "Roommates", members: 3 }
-  ]);
-
+  const { user } = useAuth();
+  const [groups, setGroups] = useState([]);
   const [groupName, setGroupName] = useState("");
 
-  function handleCreateGroup() {
+  // Fetch groups for logged-in user
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "groups"),
+      where("ownerId", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const userGroups = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setGroups(userGroups);
+    });
+
+    return unsubscribe;
+  }, [user]);
+
+  const handleCreateGroup = async () => {
     if (groupName.trim() === "") {
       alert("Group name cannot be empty");
       return;
     }
 
-    const newGroup = {
-      id: Date.now(),
+    await addDoc(collection(db, "groups"), {
       name: groupName,
-      members: 1
-    };
+      members: 1,
+      ownerId: user.uid,
+      createdAt: serverTimestamp(),
+    });
 
-    setGroups([...groups, newGroup]);
     setGroupName("");
-  }
+  };
 
   return (
     <div>
       <h2>Your Groups</h2>
 
-      {/* Create Group Section */}
       <div style={{ marginBottom: "20px" }}>
         <input
           type="text"
@@ -36,13 +55,11 @@ function Groups() {
           value={groupName}
           onChange={(e) => setGroupName(e.target.value)}
         />
-
         <button onClick={handleCreateGroup} style={{ marginLeft: "10px" }}>
           Create Group
         </button>
       </div>
 
-      {/* Groups List */}
       {groups.length === 0 ? (
         <p>No groups yet.</p>
       ) : (
