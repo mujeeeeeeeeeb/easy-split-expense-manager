@@ -4,8 +4,6 @@ import { useParams } from "react-router-dom";
 import {
   collection,
   addDoc,
-  query,
-  where,
   onSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
@@ -19,19 +17,19 @@ function GroupDetails() {
   const [expenses, setExpenses] = useState([]);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+  const [memberEmail, setMemberEmail] = useState("");
 
-  const members = [user.uid]; // later → real group members
+  const members = user ? [user.uid] : [];
+  const balances =
+    members.length > 0 ? calculateBalances(expenses, members) : {};
 
-const balances = calculateBalances(expenses, members);
-
-
-  // Fetch expenses for this group
+  // Fetch expenses
   useEffect(() => {
+    if (!groupId) return;
+
     const expensesRef = collection(db, "groups", groupId, "expenses");
 
-    const q = query(expensesRef);
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(expensesRef, (snapshot) => {
       const expenseList = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -60,11 +58,25 @@ const balances = calculateBalances(expenses, members);
     setAmount("");
   };
 
+  const handleAddMember = async () => {
+    if (!memberEmail) {
+      alert("Enter member email");
+      return;
+    }
+
+    alert(
+      "Member adding logic placeholder.\n" +
+      "Next step we will link email → UID properly."
+    );
+
+    setMemberEmail("");
+  };
+
   return (
     <div>
       <h2>Group Expenses</h2>
 
-      {/* Add Expense Form */}
+      {/* Add Expense */}
       <div style={{ marginBottom: "20px" }}>
         <input
           type="text"
@@ -86,31 +98,43 @@ const balances = calculateBalances(expenses, members);
         </button>
       </div>
 
-      {/* Expense List */}
+      {/* Add Member */}
+      <h3>Add Member</h3>
+      <input
+        type="email"
+        placeholder="Enter member email"
+        value={memberEmail}
+        onChange={(e) => setMemberEmail(e.target.value)}
+      />
+      <button onClick={handleAddMember} style={{ marginLeft: "10px" }}>
+        Add Member
+      </button>
+
+      {/* Expenses */}
       {expenses.length === 0 ? (
         <p>No expenses yet.</p>
       ) : (
         <ul>
           {expenses.map((expense) => (
-            <li key={expense.id} style={{ marginBottom: "10px" }}>
+            <li key={expense.id}>
               <strong>{expense.title}</strong> — ₹{expense.amount}
             </li>
           ))}
         </ul>
       )}
+
+      {/* Balances */}
       <h3>Balances</h3>
-
-<ul>
-  {Object.entries(balances).map(([memberId, balance]) => (
-    <li key={memberId}>
-      {memberId === user.uid ? "You" : memberId} :
-      {balance > 0 && ` gets ₹${balance}`}
-      {balance < 0 && ` owes ₹${Math.abs(balance)}`}
-      {balance === 0 && " settled"}
-    </li>
-  ))}
-</ul>
-
+      <ul>
+        {Object.entries(balances).map(([memberId, balance]) => (
+          <li key={memberId}>
+            {memberId === user?.uid ? "You" : memberId}
+            {balance > 0 && ` gets ₹${balance}`}
+            {balance < 0 && ` owes ₹${Math.abs(balance)}`}
+            {balance === 0 && " settled"}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

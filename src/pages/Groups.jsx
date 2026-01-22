@@ -37,11 +37,12 @@ function Groups() {
     }
 
     await addDoc(collection(db, "groups"), {
-      name: groupName,
-      members: 1,
-      ownerId: user.uid,
-      createdAt: serverTimestamp(),
-    });
+  name: groupName,
+  ownerId: user.uid,
+  members: [user.uid],
+  createdAt: serverTimestamp(),
+});
+
 
     setGroupName("");
   };
