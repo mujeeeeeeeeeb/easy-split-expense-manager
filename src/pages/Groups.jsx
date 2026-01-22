@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
+
 
 function Groups() {
   const { user } = useAuth();
@@ -64,13 +66,16 @@ function Groups() {
         <p>No groups yet.</p>
       ) : (
         <ul>
-          {groups.map((group) => (
-            <li key={group.id} style={{ marginBottom: "10px" }}>
-              <strong>{group.name}</strong>
-              <div>{group.members} members</div>
-            </li>
-          ))}
-        </ul>
+  {groups.map((group) => (
+    <li key={group.id} style={{ marginBottom: "10px" }}>
+      <Link to={`/groups/${group.id}`}>
+        <strong>{group.name}</strong>
+      </Link>
+      <div>{group.members} members</div>
+    </li>
+  ))}
+</ul>
+
       )}
     </div>
   );

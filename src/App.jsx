@@ -6,6 +6,8 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Groups from "./pages/Groups";
 import Profile from "./pages/Profile";
+import GroupDetails from "./pages/GroupDetails";
+
 
 function App() {
   return (
@@ -43,6 +45,15 @@ function App() {
       </ProtectedRoute>
     }
   />
+  <Route
+  path="/groups/:groupId"
+  element={
+    <ProtectedRoute>
+      <GroupDetails />
+    </ProtectedRoute>
+  }
+/>
+
 </Routes>
 
     </div>
