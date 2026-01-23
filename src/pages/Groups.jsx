@@ -1,22 +1,29 @@
 import { useEffect, useState } from "react";
-import { collection, addDoc, query, where, onSnapshot, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  onSnapshot,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "../services/firebase";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
-
 
 function Groups() {
   const { user } = useAuth();
   const [groups, setGroups] = useState([]);
   const [groupName, setGroupName] = useState("");
 
-  // Fetch groups for logged-in user
+  console.log("Current user:", user);
+
   useEffect(() => {
     if (!user) return;
 
     const q = query(
       collection(db, "groups"),
-      where("ownerId", "==", user.uid)
+      where("members", "array-contains", user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -37,12 +44,11 @@ function Groups() {
     }
 
     await addDoc(collection(db, "groups"), {
-  name: groupName,
-  ownerId: user.uid,
-  members: [user.uid],
-  createdAt: serverTimestamp(),
-});
-
+      name: groupName,
+      ownerId: user.uid,
+      members: [user.uid],
+      createdAt: serverTimestamp(),
+    });
 
     setGroupName("");
   };
@@ -58,7 +64,7 @@ function Groups() {
           value={groupName}
           onChange={(e) => setGroupName(e.target.value)}
         />
-        <button onClick={handleCreateGroup} style={{ marginLeft: "10px" }}>
+        <button onClick={handleCreateGroup} disabled={!user}>
           Create Group
         </button>
       </div>
@@ -67,16 +73,15 @@ function Groups() {
         <p>No groups yet.</p>
       ) : (
         <ul>
-  {groups.map((group) => (
-    <li key={group.id} style={{ marginBottom: "10px" }}>
-      <Link to={`/groups/${group.id}`}>
-        <strong>{group.name}</strong>
-      </Link>
-      <div>{group.members} members</div>
-    </li>
-  ))}
-</ul>
-
+          {groups.map((group) => (
+            <li key={group.id} style={{ marginBottom: "10px" }}>
+              <Link to={`/groups/${group.id}`}>
+                <strong>{group.name}</strong>
+              </Link>
+              <div>{group.members.length} members</div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

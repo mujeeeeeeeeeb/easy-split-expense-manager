@@ -1,4 +1,3 @@
-import { calculateBalances } from "../utils/balanceCalculator";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -6,29 +5,75 @@ import {
   addDoc,
   onSnapshot,
   serverTimestamp,
+  doc,
+  updateDoc,
+  query,
+  where,
+  getDocs,
+  arrayUnion,
 } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { useAuth } from "../context/AuthContext";
+import { calculateBalances } from "../utils/balanceCalculator";
 
 function GroupDetails() {
   const { groupId } = useParams();
   const { user } = useAuth();
 
+  const [group, setGroup] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
-
-  const members = user ? [user.uid] : [];
+  const [memberProfiles, setMemberProfiles] = useState({});
+  const members = group?.members || [];
   const balances =
     members.length > 0 ? calculateBalances(expenses, members) : {};
 
-  // Fetch expenses
+  // 🔄 Realtime group data (members)
+  useEffect(() => {
+    if (!groupId) return;
+
+    const groupRef = doc(db, "groups", groupId);
+    const unsubscribe = onSnapshot(groupRef, (snap) => {
+      if (snap.exists()) {
+        setGroup({ id: snap.id, ...snap.data() });
+      }
+    });
+
+    return unsubscribe;
+  }, [groupId]);
+  
+  useEffect(() => {
+  if (!group || !group.members || group.members.length === 0) return;
+
+  const fetchMemberProfiles = async () => {
+    const profiles = {};
+
+    const usersRef = collection(db, "users");
+
+    // Fetch each member's profile
+    for (const uid of group.members) {
+      const q = query(usersRef, where("__name__", "==", uid));
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        profiles[uid] = snap.docs[0].data();
+      }
+    }
+
+    setMemberProfiles(profiles);
+  };
+
+  fetchMemberProfiles();
+}, [group]);
+
+
+  // 🔄 Realtime expenses
   useEffect(() => {
     if (!groupId) return;
 
     const expensesRef = collection(db, "groups", groupId, "expenses");
-
     const unsubscribe = onSnapshot(expensesRef, (snapshot) => {
       const expenseList = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -64,10 +109,31 @@ function GroupDetails() {
       return;
     }
 
-    alert(
-      "Member adding logic placeholder.\n" +
-      "Next step we will link email → UID properly."
-    );
+    if (!group || !group.members) {
+      alert("Group not loaded yet, try again");
+      return;
+    }
+
+    // Find user by email
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("email", "==", memberEmail));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      alert("User not found. Ask them to login once.");
+      return;
+    }
+
+    const memberUid = querySnapshot.docs[0].id;
+
+    if (group.members.includes(memberUid)) {
+      alert("User already in group");
+      return;
+    }
+
+    await updateDoc(doc(db, "groups", groupId), {
+      members: arrayUnion(memberUid),
+    });
 
     setMemberEmail("");
   };
@@ -110,6 +176,21 @@ function GroupDetails() {
         Add Member
       </button>
 
+        {/* Members List */}
+
+      <h3>Members</h3>
+
+<ul>
+  {members.map((uid) => (
+    <li key={uid}>
+      {uid === user?.uid
+        ? "You"
+        : memberProfiles[uid]?.name || memberProfiles[uid]?.email || uid}
+    </li>
+  ))}
+</ul>
+
+
       {/* Expenses */}
       {expenses.length === 0 ? (
         <p>No expenses yet.</p>
@@ -128,7 +209,9 @@ function GroupDetails() {
       <ul>
         {Object.entries(balances).map(([memberId, balance]) => (
           <li key={memberId}>
-            {memberId === user?.uid ? "You" : memberId}
+            {memberId === user?.uid
+  ? "You"
+  : memberProfiles[memberId]?.name || memberProfiles[memberId]?.email}
             {balance > 0 && ` gets ₹${balance}`}
             {balance < 0 && ` owes ₹${Math.abs(balance)}`}
             {balance === 0 && " settled"}
