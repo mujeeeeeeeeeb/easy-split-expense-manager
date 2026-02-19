@@ -19,6 +19,8 @@ import { calculateBalances } from "../utils/balanceCalculator";
 function GroupDetails() {
   const { groupId } = useParams();
   const { user } = useAuth();
+  const [splitType, setSplitType] = useState("equal");
+const [percentageSplits, setPercentageSplits] = useState({});
 
   const [group, setGroup] = useState(null);
   const [expenses, setExpenses] = useState([]);
@@ -86,22 +88,42 @@ function GroupDetails() {
   }, [groupId]);
 
   const handleAddExpense = async () => {
-    if (!title || !amount) {
-      alert("Please enter title and amount");
+  if (!title || !amount) {
+    alert("Please enter title and amount");
+    return;
+  }
+
+  if (splitType === "percentage") {
+    const total = Object.values(percentageSplits).reduce(
+      (sum, v) => sum + v,
+      0
+    );
+
+    if (total !== 100) {
+      alert("Percentages must add up to 100%");
       return;
     }
+  }
 
-    await addDoc(collection(db, "groups", groupId, "expenses"), {
-      title,
-      amount: Number(amount),
-      paidBy: user.uid,
-      splitType: "equal",
-      createdAt: serverTimestamp(),
-    });
-
-    setTitle("");
-    setAmount("");
+  const expenseData = {
+    title,
+    amount: Number(amount),
+    paidBy: user.uid,
+    splitType,
+    createdAt: serverTimestamp(),
   };
+
+  if (splitType === "percentage") {
+    expenseData.splits = percentageSplits;
+  }
+
+  await addDoc(collection(db, "groups", groupId, "expenses"), expenseData);
+
+  setTitle("");
+  setAmount("");
+  setPercentageSplits({});
+  setSplitType("equal");
+};
 
   const handleAddMember = async () => {
     if (!memberEmail) {
@@ -142,6 +164,53 @@ function GroupDetails() {
     <div>
       <h2>Group Expenses</h2>
 
+      <div>
+  <label>
+    <input
+      type="radio"
+      value="equal"
+      checked={splitType === "equal"}
+      onChange={() => setSplitType("equal")}
+    />
+    Equal split
+  </label>
+
+  <label style={{ marginLeft: "10px" }}>
+    <input
+      type="radio"
+      value="percentage"
+      checked={splitType === "percentage"}
+      onChange={() => setSplitType("percentage")}
+    />
+    Percentage split
+  </label>
+</div>
+
+{splitType === "percentage" && (
+  <div style={{ marginTop: "10px" }}>
+    {members.map((uid) => (
+      <div key={uid}>
+        <label>
+          {uid === user.uid
+            ? "You"
+            : memberProfiles[uid]?.name || memberProfiles[uid]?.email}
+        </label>
+        <input
+          type="number"
+          placeholder="%"
+          value={percentageSplits[uid] || ""}
+          onChange={(e) =>
+            setPercentageSplits({
+              ...percentageSplits,
+              [uid]: Number(e.target.value),
+            })
+          }
+          style={{ marginLeft: "10px", width: "60px" }}
+        />
+      </div>
+    ))}
+  </div>
+)}
       {/* Add Expense */}
       <div style={{ marginBottom: "20px" }}>
         <input

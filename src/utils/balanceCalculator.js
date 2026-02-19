@@ -7,15 +7,24 @@ export function calculateBalances(expenses, members) {
   });
 
   expenses.forEach((expense) => {
-    const splitAmount = expense.amount / members.length;
+    if (expense.splitType === "equal") {
+      const splitAmount = expense.amount / members.length;
 
-    members.forEach((memberId) => {
-      // Everyone owes their share
-      balances[memberId] -= splitAmount;
-    });
+      members.forEach((memberId) => {
+        balances[memberId] -= splitAmount;
+      });
 
-    // Person who paid gets credited
-    balances[expense.paidBy] += expense.amount;
+      balances[expense.paidBy] += expense.amount;
+    }
+
+    if (expense.splitType === "percentage") {
+      Object.entries(expense.splits).forEach(([memberId, percent]) => {
+        const share = (expense.amount * percent) / 100;
+        balances[memberId] -= share;
+      });
+
+      balances[expense.paidBy] += expense.amount;
+    }
   });
 
   return balances;
